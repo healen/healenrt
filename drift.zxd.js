@@ -6,7 +6,7 @@
             maxSize:5,
             minSize:5,
             image:[],
-            wind:100,
+            wind:0,
             sleep:80,
             sleepAnimate:5000
         };
