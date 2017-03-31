@@ -33,7 +33,6 @@
 	<script type="text/javascript">
 
 	(function(){
-
 		var imgList = ["img/1.png","img/2.png","img/3.png","img/5.png"];//奖品列表
 		/**
 		 * JS获取n至m随机整数
@@ -46,40 +45,43 @@
 		var swNumber = 3;//限制次数;
 		var isBegin = true; //是不是开始;
 		var timer = null; //初始化定时器
-
-
+		$("#degree").html(swNumber) //显示抽奖次数
+		if(swNumber<=0){
+			$("#start").val("今日没抽奖机会")
+		}
 		$("#start").on("click",function(){
+			if(swNumber<=0){
+				$(this).val("今日没抽奖机会")
+			}
 
-			if(isBegin==true){
+			if(isBegin==true && swNumber>0){
 				isBegin=false;
-
 				clearInterval(timer);
-				$(this).val("停止抽奖")
-
+				$(this).val("停止抽奖");
 				timer=setInterval(function(){
 					var k = rd(0,imgList.length)//通过随机数获取数组k
-
 					$(".probox").html(imgList[k])
-
 				},10)
 
-
 			}else{
+				if(swNumber>0){
+					isBegin=true;
+					swNumber--;
+					// alert("抽奖完成执行事件");
+					$(this).val("开始抽奖")
+					clearInterval(timer);
+					$("#degree").html(swNumber);
+					/*抽奖调用ajax在这里写*/
+						// $.ajax({
 
-				isBegin=true;
-
-				clearInterval(timer);
-
+						// })
+					/*抽奖调用ajax在这里写*/
+				}
+				if(swNumber<1){
+					$(this).val("今日没抽奖机会")
+				}
 			}
-			
-
-
-
 		})
-
-
-
-
 	})()
 
 
