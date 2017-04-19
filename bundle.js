@@ -18335,10 +18335,10 @@
 	 */
 
 	function getUnboundedScrollPosition(scrollable) {
-	  if (scrollable === window) {
+	  if (scrollable.Window && scrollable instanceof scrollable.Window) {
 	    return {
-	      x: window.pageXOffset || document.documentElement.scrollLeft,
-	      y: window.pageYOffset || document.documentElement.scrollTop
+	      x: scrollable.pageXOffset || scrollable.document.documentElement.scrollLeft,
+	      y: scrollable.pageYOffset || scrollable.document.documentElement.scrollTop
 	    };
 	  }
 	  return {
@@ -19090,7 +19090,9 @@
 	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
 	function isNode(object) {
-	  return !!(object && (typeof Node === 'function' ? object instanceof Node : (typeof object === 'undefined' ? 'undefined' : _typeof(object)) === 'object' && typeof object.nodeType === 'number' && typeof object.nodeName === 'string'));
+	  var doc = object ? object.ownerDocument || object : document;
+	  var defaultView = doc.defaultView || window;
+	  return !!(object && (typeof defaultView.Node === 'function' ? object instanceof defaultView.Node : (typeof object === 'undefined' ? 'undefined' : _typeof(object)) === 'object' && typeof object.nodeType === 'number' && typeof object.nodeName === 'string'));
 	}
 
 	module.exports = isNode;
@@ -19120,16 +19122,20 @@
 	 *
 	 * The activeElement will be null only if the document or document body is not
 	 * yet defined.
+	 *
+	 * @param {?DOMDocument} doc Defaults to current document.
+	 * @return {?DOMElement}
 	 */
 
-	function getActiveElement() /*?DOMElement*/{
-	  if (typeof document === 'undefined') {
+	function getActiveElement(doc) /*?DOMElement*/{
+	  doc = doc || (typeof document !== 'undefined' ? document : undefined);
+	  if (typeof doc === 'undefined') {
 	    return null;
 	  }
 	  try {
-	    return document.activeElement || document.body;
+	    return doc.activeElement || doc.body;
 	  } catch (e) {
-	    return document.body;
+	    return doc.body;
 	  }
 	}
 
@@ -21574,8 +21580,14 @@
 				_react2.default.createElement(_reactRouter.Route, { path: 'hello', component: _study.Hello }),
 				_react2.default.createElement(_reactRouter.Route, { path: 'jsx', component: _study.JsxSyntx }),
 				_react2.default.createElement(_reactRouter.Route, { path: 'comp', component: _study.Comp }),
-				_react2.default.createElement(_reactRouter.Route, { path: 'propschildren', component: _study.PropsChildren })
-			)
+				_react2.default.createElement(_reactRouter.Route, { path: 'propschildren', component: _study.PropsChildren }),
+				_react2.default.createElement(_reactRouter.Route, { path: 'propstype', component: _study.ProptypesEx }),
+				_react2.default.createElement(_reactRouter.Route, { path: 'domc', component: _study.Domc }),
+				_react2.default.createElement(_reactRouter.Route, { path: 'statec', component: _study.Statec }),
+				_react2.default.createElement(_reactRouter.Route, { path: 'formc', component: _study.Formc }),
+				_react2.default.createElement(_reactRouter.Route, { path: 'life', component: _study.Lifec })
+			),
+			_react2.default.createElement(_reactRouter.Route, { path: 'effects', component: _app.Effects })
 		)
 	);
 	exports.default = Routers;
@@ -22217,27 +22229,28 @@
 	    func = _React$PropTypes.func,
 	    object = _React$PropTypes.object;
 
+	var propTypes = {
+	  history: object,
+	  children: _InternalPropTypes.routes,
+	  routes: _InternalPropTypes.routes, // alias for children
+	  render: func,
+	  createElement: func,
+	  onError: func,
+	  onUpdate: func,
+
+	  // PRIVATE: For client-side rehydration of server match.
+	  matchContext: object
+	};
+
 	/**
 	 * A <Router> is a high-level API for automatically setting up
 	 * a router that renders a <RouterContext> with all the props
 	 * it needs each time the URL changes.
 	 */
-
 	var Router = _react2.default.createClass({
 	  displayName: 'Router',
 
-	  propTypes: {
-	    history: object,
-	    children: _InternalPropTypes.routes,
-	    routes: _InternalPropTypes.routes, // alias for children
-	    render: func,
-	    createElement: func,
-	    onError: func,
-	    onUpdate: func,
-
-	    // PRIVATE: For client-side rehydration of server match.
-	    matchContext: object
-	  },
+	  propTypes: propTypes,
 
 	  getDefaultProps: function getDefaultProps() {
 	    return {
@@ -22332,7 +22345,7 @@
 
 	    // Only forward non-Router-specific props to routing context, as those are
 	    // the only ones that might be custom routing context props.
-	    Object.keys(Router.propTypes).forEach(function (propType) {
+	    Object.keys(propTypes).forEach(function (propType) {
 	      return delete props[propType];
 	    });
 
@@ -22785,31 +22798,29 @@
 	      changeRoutes = void 0,
 	      enterRoutes = void 0;
 	  if (prevRoutes) {
-	    (function () {
-	      var parentIsLeaving = false;
-	      leaveRoutes = prevRoutes.filter(function (route) {
-	        if (parentIsLeaving) {
-	          return true;
-	        } else {
-	          var isLeaving = nextRoutes.indexOf(route) === -1 || routeParamsChanged(route, prevState, nextState);
-	          if (isLeaving) parentIsLeaving = true;
-	          return isLeaving;
-	        }
-	      });
+	    var parentIsLeaving = false;
+	    leaveRoutes = prevRoutes.filter(function (route) {
+	      if (parentIsLeaving) {
+	        return true;
+	      } else {
+	        var isLeaving = nextRoutes.indexOf(route) === -1 || routeParamsChanged(route, prevState, nextState);
+	        if (isLeaving) parentIsLeaving = true;
+	        return isLeaving;
+	      }
+	    });
 
-	      // onLeave hooks start at the leaf route.
-	      leaveRoutes.reverse();
+	    // onLeave hooks start at the leaf route.
+	    leaveRoutes.reverse();
 
-	      enterRoutes = [];
-	      changeRoutes = [];
+	    enterRoutes = [];
+	    changeRoutes = [];
 
-	      nextRoutes.forEach(function (route) {
-	        var isNew = prevRoutes.indexOf(route) === -1;
-	        var paramsChanged = leaveRoutes.indexOf(route) !== -1;
+	    nextRoutes.forEach(function (route) {
+	      var isNew = prevRoutes.indexOf(route) === -1;
+	      var paramsChanged = leaveRoutes.indexOf(route) !== -1;
 
-	        if (isNew || paramsChanged) enterRoutes.push(route);else changeRoutes.push(route);
-	      });
-	    })();
+	      if (isNew || paramsChanged) enterRoutes.push(route);else changeRoutes.push(route);
+	    });
 	  } else {
 	    leaveRoutes = [];
 	    changeRoutes = [];
@@ -23309,8 +23320,6 @@
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
 
-	var _typeof2 = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
 	exports.__esModule = true;
 
 	var _extends = Object.assign || function (target) {
@@ -23321,12 +23330,6 @@
 	      }
 	    }
 	  }return target;
-	};
-
-	var _typeof = typeof Symbol === "function" && _typeof2(Symbol.iterator) === "symbol" ? function (obj) {
-	  return typeof obj === "undefined" ? "undefined" : _typeof2(obj);
-	} : function (obj) {
-	  return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj === "undefined" ? "undefined" : _typeof2(obj);
 	};
 
 	exports.default = matchRoutes;
@@ -23479,38 +23482,32 @@
 	    // By assumption, pattern is non-empty here, which is the prerequisite for
 	    // actually terminating a match.
 	    if (remainingPathname === '') {
-	      var _ret = function () {
-	        var match = {
-	          routes: [route],
-	          params: createParams(paramNames, paramValues)
-	        };
+	      var match = {
+	        routes: [route],
+	        params: createParams(paramNames, paramValues)
+	      };
 
-	        getIndexRoute(route, location, paramNames, paramValues, function (error, indexRoute) {
-	          if (error) {
-	            callback(error);
-	          } else {
-	            if (Array.isArray(indexRoute)) {
-	              var _match$routes;
+	      getIndexRoute(route, location, paramNames, paramValues, function (error, indexRoute) {
+	        if (error) {
+	          callback(error);
+	        } else {
+	          if (Array.isArray(indexRoute)) {
+	            var _match$routes;
 
-	              process.env.NODE_ENV !== 'production' ? (0, _routerWarning2.default)(indexRoute.every(function (route) {
-	                return !route.path;
-	              }), 'Index routes should not have paths') : void 0;
-	              (_match$routes = match.routes).push.apply(_match$routes, indexRoute);
-	            } else if (indexRoute) {
-	              process.env.NODE_ENV !== 'production' ? (0, _routerWarning2.default)(!indexRoute.path, 'Index routes should not have paths') : void 0;
-	              match.routes.push(indexRoute);
-	            }
-
-	            callback(null, match);
+	            process.env.NODE_ENV !== 'production' ? (0, _routerWarning2.default)(indexRoute.every(function (route) {
+	              return !route.path;
+	            }), 'Index routes should not have paths') : void 0;
+	            (_match$routes = match.routes).push.apply(_match$routes, indexRoute);
+	          } else if (indexRoute) {
+	            process.env.NODE_ENV !== 'production' ? (0, _routerWarning2.default)(!indexRoute.path, 'Index routes should not have paths') : void 0;
+	            match.routes.push(indexRoute);
 	          }
-	        });
 
-	        return {
-	          v: void 0
-	        };
-	      }();
+	          callback(null, match);
+	        }
+	      });
 
-	      if ((typeof _ret === 'undefined' ? 'undefined' : _typeof(_ret)) === "object") return _ret.v;
+	      return;
 	    }
 	  }
 
@@ -24054,11 +24051,6 @@
 	 * You could use the following component to link to that route:
 	 *
 	 *   <Link to={`/posts/${post.id}`} />
-	 *
-	 * Links may pass along location state and/or query string parameters
-	 * in the state/query props, respectively.
-	 *
-	 *   <Link ... query={{ show: true }} state={{ the: 'state' }} />
 	 */
 	var Link = _react2.default.createClass({
 	  displayName: 'Link',
@@ -24071,9 +24063,6 @@
 
 	  propTypes: {
 	    to: oneOfType([string, object, func]),
-	    query: object,
-	    hash: string,
-	    state: object,
 	    activeStyle: object,
 	    activeClassName: string,
 	    onlyActiveOnIndex: bool.isRequired,
@@ -26470,12 +26459,7 @@
 	'use strict';
 
 	exports.__esModule = true;
-
-	exports.default = function (createHistory) {
-	  var history = void 0;
-	  if (canUseDOM) history = (0, _useRouterHistory2.default)(createHistory)();
-	  return history;
-	};
+	exports.default = createRouterHistory;
 
 	var _useRouterHistory = __webpack_require__(221);
 
@@ -26487,6 +26471,11 @@
 
 	var canUseDOM = !!(typeof window !== 'undefined' && window.document && window.document.createElement);
 
+	function createRouterHistory(createHistory) {
+	  var history = void 0;
+	  if (canUseDOM) history = (0, _useRouterHistory2.default)(createHistory)();
+	  return history;
+	}
 	module.exports = exports['default'];
 
 /***/ },
@@ -26835,7 +26824,7 @@
 	Object.defineProperty(exports, "__esModule", {
 		value: true
 	});
-	exports.StudyReact = exports.Index = exports.App = undefined;
+	exports.Effects = exports.StudyReact = exports.Index = exports.App = undefined;
 
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
@@ -26991,9 +26980,38 @@
 		return StudyReact;
 	}(_react.Component);
 
+	var Effects = function (_Component4) {
+		_inherits(Effects, _Component4);
+
+		function Effects() {
+			_classCallCheck(this, Effects);
+
+			return _possibleConstructorReturn(this, (Effects.__proto__ || Object.getPrototypeOf(Effects)).apply(this, arguments));
+		}
+
+		_createClass(Effects, [{
+			key: 'render',
+			value: function render() {
+				return _react2.default.createElement(
+					'div',
+					{ id: 'outer' },
+					_react2.default.createElement(
+						'div',
+						{ id: 'canvasContainer' },
+						_react2.default.createElement('canvas', { id: 'mainCanvas', width: '1000', height: '560' }),
+						_react2.default.createElement('div', { id: 'output' })
+					)
+				);
+			}
+		}]);
+
+		return Effects;
+	}(_react.Component);
+
 	exports.App = App;
 	exports.Index = Index;
 	exports.StudyReact = StudyReact;
+	exports.Effects = Effects;
 
 /***/ },
 /* 235 */
@@ -27033,7 +27051,7 @@
 				GitHubUrl: 'https://github.com/healen/study-react',
 				open: false,
 				title: "React之禅",
-				desct: "React以及相关组件开发，如下笔记，欢迎入坑"
+				desct: "React以及相关组件开发，如下笔记"
 			};
 			return _this;
 		}
@@ -27092,6 +27110,17 @@
 											'\u7B14\u8BB0'
 										)
 									),
+									'// ',
+									_react2.default.createElement(
+										'li',
+										null,
+										' ',
+										_react2.default.createElement(
+											_reactRouter.Link,
+											{ to: '/effects', activeClassName: 'active' },
+											'\u70AB\u9177\u7279\u6548'
+										)
+									),
 									_react2.default.createElement(
 										'li',
 										null,
@@ -27146,15 +27175,7 @@
 	Object.defineProperty(exports, "__esModule", {
 		value: true
 	});
-	var Menu = [{ to: "/StudyReact/hello", title: "Hello Word" }, { to: "/StudyReact/jsx", title: "jsx语法" }, { to: "/StudyReact/comp", title: "组件" }, { to: "/StudyReact/propschildren", title: "Props Children" }
-	// {to:"/StudyReact/propstype",title:"PropTypes"},
-	// {to:"/StudyReact/dom",title:"React DOM"},
-	// {to:"/StudyReact/state",title:"State"},
-	// {to:"/StudyReact/form",title:"表单"},
-	// {to:"/StudyReact/life",title:"生命周期"},
-	// {to:"/StudyReact/ajax",title:"数据请求"},
-	// {to:"/StudyReact/webpack",title:"webpack"},
-	];
+	var Menu = [{ to: "/StudyReact/hello", title: "Hello Word" }, { to: "/StudyReact/jsx", title: "jsx语法" }, { to: "/StudyReact/comp", title: "组件" }, { to: "/StudyReact/propschildren", title: "Props Children" }, { to: "/StudyReact/propstype", title: "PropTypes" }, { to: "/StudyReact/domc", title: "DOM操作" }, { to: "/StudyReact/statec", title: "State" }, { to: "/StudyReact/formc", title: "表单" }, { to: "/StudyReact/life", title: "生命周期" }];
 	exports.default = Menu;
 
 /***/ },
@@ -27539,7 +27560,7 @@
 
 
 	// module
-	exports.push([module.id, "body,\nhtml,\n#bodyContent,\n.bodyPage {\n  height: 100%;\n}\nbody {\n  overflow-x: hidden;\n}\n.indexWarrp {\n  text-align: center;\n}\n.indexWarrp p {\n  padding: 10px;\n}\n.nav a.active {\n  background: #333;\n  border-bottom: 3px solid #cc7a6f!important;\n}\n.navBar {\n  border-left: 1px solid #ccc;\n  height: 100%;\n}\n.navBar ul {\n  padding-left: 0px;\n  margin-top: 10px;\n}\n.navBar li {\n  list-style: none;\n}\n.navBar li a {\n  line-height: 40px;\n  border-bottom: 1px solid #ccc;\n  display: block;\n  text-align: left;\n  color: #555;\n  padding-left: 10px;\n  padding-right: 10px;\n  cursor: pointer;\n  border-radius: 0px 20px 20px 0px;\n  border-left: 3px solid #f9f9f9;\n  -webkit-transition: all 300ms;\n  -o-transition: all 300ms;\n  transition: all 300ms;\n  width: 90%;\n}\n.navBar li a:hover {\n  text-decoration: none;\n  color: #00d8ff;\n  width: 100%;\n}\n.navBar li a.acitve {\n  border-right: 3px solid #00d8ff;\n  text-align: right;\n  color: #00d8ff;\n  background: #333;\n  width: 100%;\n}\n.navBar li a:focus {\n  text-decoration: none;\n}\n.codeTextarea {\n  width: 100%;\n  height: 210px;\n  display: block;\n  border-color: #ddd;\n  margin-top: -1px;\n  display: none;\n}\n.codeTextarea:focus {\n  border-color: #ddd;\n  outline-offsert: 0px;\n  outline-width: 0px;\n}\n.codebox {\n  border: 1px solid #ddd;\n  margin-top: -1px;\n  overflow: hidden;\n  display: block;\n  -webkit-transition: all 500ms;\n  -o-transition: all 500ms;\n  transition: all 500ms;\n}\n.h {\n  height: 300px;\n  opacity: 1;\n}\n.h0 {\n  height: 0px;\n  border-width: 0px;\n  opacity: .3;\n}\n", ""]);
+	exports.push([module.id, "body,\nhtml,\n#bodyContent,\n.bodyPage {\n  height: 100%;\n}\nbody {\n  overflow-x: hidden;\n}\n.indexWarrp {\n  text-align: center;\n}\n.indexWarrp p {\n  padding: 10px;\n}\n.nav a.active {\n  background: #333;\n  border-bottom: 3px solid #cc7a6f!important;\n}\n.navBar {\n  border-left: 1px solid #ccc;\n  height: 100%;\n}\n.navBar ul {\n  padding-left: 0px;\n  margin-top: 10px;\n}\n.navBar li {\n  list-style: none;\n}\n.navBar li a {\n  line-height: 40px;\n  border-bottom: 1px solid #ccc;\n  display: block;\n  text-align: left;\n  color: #555;\n  padding-left: 10px;\n  padding-right: 10px;\n  cursor: pointer;\n  border-radius: 0px 20px 20px 0px;\n  border-left: 3px solid #f9f9f9;\n  -webkit-transition: all 300ms;\n  -o-transition: all 300ms;\n  transition: all 300ms;\n  width: 90%;\n}\n.navBar li a:hover {\n  text-decoration: none;\n  color: #00d8ff;\n  width: 100%;\n}\n.navBar li a.acitve {\n  border-right: 3px solid #00d8ff;\n  text-align: right;\n  color: #00d8ff;\n  background: #333;\n  width: 100%;\n}\n.navBar li a:focus {\n  text-decoration: none;\n}\n.codeTextarea {\n  width: 100%;\n  height: 210px;\n  display: block;\n  border-color: #ddd;\n  margin-top: -1px;\n  display: none;\n}\n.codeTextarea:focus {\n  border-color: #ddd;\n  outline-offsert: 0px;\n  outline-width: 0px;\n}\n.codebox {\n  border: 1px solid #ddd;\n  margin-top: -1px;\n  overflow: hidden;\n  display: block;\n  -webkit-transition: all 500ms;\n  -o-transition: all 500ms;\n  transition: all 500ms;\n}\n.h {\n  height: 300px;\n  opacity: 1;\n}\n.h0 {\n  height: 0px;\n  border-width: 0px;\n  opacity: .3;\n}\n.life {\n  background: #000000;\n  height: 40px;\n  line-height: 40px;\n  color: #fff;\n  font-size: 20px;\n  text-align: center;\n  overflow: hidden;\n}\n", ""]);
 
 	// exports
 
@@ -27553,7 +27574,7 @@
 	Object.defineProperty(exports, "__esModule", {
 		value: true
 	});
-	exports.PropsChildren = exports.Comp = exports.JsxSyntx = exports.Hello = undefined;
+	exports.Lifec = exports.Formc = exports.Statec = exports.Domc = exports.ProptypesEx = exports.PropsChildren = exports.Comp = exports.JsxSyntx = exports.Hello = undefined;
 
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
@@ -27782,6 +27803,252 @@
 		return PropsChildren;
 	}(_react.Component);
 
+	var ProptypesEx = function (_Component5) {
+		_inherits(ProptypesEx, _Component5);
+
+		function ProptypesEx() {
+			_classCallCheck(this, ProptypesEx);
+
+			return _possibleConstructorReturn(this, (ProptypesEx.__proto__ || Object.getPrototypeOf(ProptypesEx)).apply(this, arguments));
+		}
+
+		_createClass(ProptypesEx, [{
+			key: 'render',
+			value: function render() {
+				var str = 10;
+				return _react2.default.createElement(
+					'div',
+					{ id: 'ProptypesEx' },
+					_react2.default.createElement(
+						'h2',
+						{ className: 'page-header' },
+						'propsType'
+					),
+					_react2.default.createElement(
+						'p',
+						null,
+						'\u7EC4\u4EF6\u7684\u5C5E\u6027\u53EF\u4EE5\u63A5\u53D7\u4EFB\u610F\u503C\uFF0C\u5B57\u7B26\u4E32\u3001\u5BF9\u8C61\u3001\u51FD\u6570\u7B49\u7B49\u90FD\u53EF\u4EE5\u3002\u6709\u65F6\uFF0C\u6211\u4EEC\u9700\u8981\u4E00\u79CD\u673A\u5236\uFF0C\u9A8C\u8BC1\u522B\u4EBA\u4F7F\u7528\u7EC4\u4EF6\u65F6\uFF0C\u63D0\u4F9B\u7684\u53C2\u6570\u662F\u5426\u7B26\u5408\u8981\u6C42\u3002'
+					),
+					_react2.default.createElement(
+						_example2.default,
+						{ title: 'propsType \u5B9E\u4F8B', codeQure: _code2.default.DomcExample },
+						_react2.default.createElement(ProptypesShow /*str={str}*/, null)
+					)
+				);
+			}
+		}]);
+
+		return ProptypesEx;
+	}(_react.Component);
+
+	var Domc = function (_Component6) {
+		_inherits(Domc, _Component6);
+
+		function Domc() {
+			_classCallCheck(this, Domc);
+
+			return _possibleConstructorReturn(this, (Domc.__proto__ || Object.getPrototypeOf(Domc)).apply(this, arguments));
+		}
+
+		_createClass(Domc, [{
+			key: 'render',
+			value: function render() {
+				return _react2.default.createElement(
+					'div',
+					{ id: 'Domc' },
+					_react2.default.createElement(
+						'h2',
+						{ className: 'page-header' },
+						'\u83B7\u53D6\u771F\u5B9EDOM'
+					),
+					_react2.default.createElement('p', null),
+					_react2.default.createElement(
+						_example2.default,
+						{ title: '\u83B7\u53D6\u771F\u5B9EDOM \u5B9E\u4F8B', codeQure: _code2.default.DomcExample },
+						_react2.default.createElement(DomcExample, null)
+					)
+				);
+			}
+		}]);
+
+		return Domc;
+	}(_react.Component);
+
+	var Statec = function (_Component7) {
+		_inherits(Statec, _Component7);
+
+		function Statec() {
+			_classCallCheck(this, Statec);
+
+			return _possibleConstructorReturn(this, (Statec.__proto__ || Object.getPrototypeOf(Statec)).apply(this, arguments));
+		}
+
+		_createClass(Statec, [{
+			key: 'render',
+			value: function render() {
+				return _react2.default.createElement(
+					'div',
+					{ id: 'Statec' },
+					_react2.default.createElement(
+						'h2',
+						{ className: 'page-header' },
+						'State'
+					),
+					_react2.default.createElement('p', null),
+					_react2.default.createElement(
+						_example2.default,
+						{ title: 'Statec \u5B9E\u4F8B', codeQure: _code2.default.StateExample },
+						_react2.default.createElement(StateExample, null)
+					)
+				);
+			}
+		}]);
+
+		return Statec;
+	}(_react.Component);
+
+	var Formc = function (_Component8) {
+		_inherits(Formc, _Component8);
+
+		function Formc() {
+			_classCallCheck(this, Formc);
+
+			return _possibleConstructorReturn(this, (Formc.__proto__ || Object.getPrototypeOf(Formc)).apply(this, arguments));
+		}
+
+		_createClass(Formc, [{
+			key: 'render',
+			value: function render() {
+				return _react2.default.createElement(
+					'div',
+					{ id: 'Formc' },
+					_react2.default.createElement(
+						'h2',
+						{ className: 'page-header' },
+						'Form'
+					),
+					_react2.default.createElement('p', null),
+					_react2.default.createElement(
+						_example2.default,
+						{ title: 'Form \u5B9E\u4F8B', codeQure: _code2.default.FormExample },
+						_react2.default.createElement(FormExample, null)
+					)
+				);
+			}
+		}]);
+
+		return Formc;
+	}(_react.Component);
+
+	var Lifec = function (_Component9) {
+		_inherits(Lifec, _Component9);
+
+		function Lifec() {
+			_classCallCheck(this, Lifec);
+
+			return _possibleConstructorReturn(this, (Lifec.__proto__ || Object.getPrototypeOf(Lifec)).apply(this, arguments));
+		}
+
+		_createClass(Lifec, [{
+			key: 'render',
+			value: function render() {
+				return _react2.default.createElement(
+					'div',
+					{ id: 'Lifec' },
+					_react2.default.createElement(
+						'h2',
+						{ className: 'page-header' },
+						'\u7EC4\u4EF6\u7684\u751F\u547D\u5468\u671F'
+					),
+					_react2.default.createElement(
+						'p',
+						null,
+						'react\u7EC4\u4EF6\u751F\u547D\u5468\u671F\u5206\u4E09\u4E2A\u72B6\u6001'
+					),
+					_react2.default.createElement(
+						'ul',
+						null,
+						_react2.default.createElement(
+							'li',
+							null,
+							'Mounting:\u5DF2\u63D2\u5165\u771F\u5B9EDOM'
+						),
+						_react2.default.createElement(
+							'li',
+							null,
+							'Updating:\u6B63\u5728\u88AB\u91CD\u65B0\u6E32\u67D3'
+						),
+						_react2.default.createElement(
+							'li',
+							null,
+							'Unmounting:\u5DF2\u79FB\u9664\u771F\u5B9EDOM'
+						)
+					),
+					_react2.default.createElement(
+						'p',
+						null,
+						'React \u4E3A\u6BCF\u4E2A\u72B6\u6001\u90FD\u63D0\u4F9B\u4E86\u4E24\u79CD\u5904\u7406\u51FD\u6570\uFF0Cwill \u51FD\u6570\u5728\u8FDB\u5165\u72B6\u6001\u4E4B\u524D\u8C03\u7528\uFF0Cdid \u51FD\u6570\u5728\u8FDB\u5165\u72B6\u6001\u4E4B\u540E\u8C03\u7528\uFF0C\u4E09\u79CD\u72B6\u6001\u5171\u8BA1\u4E94\u79CD\u5904\u7406\u51FD\u6570\u3002'
+					),
+					_react2.default.createElement(
+						'ul',
+						null,
+						_react2.default.createElement(
+							'li',
+							null,
+							'componentWillMount()'
+						),
+						_react2.default.createElement(
+							'li',
+							null,
+							'componentDidMount()'
+						),
+						_react2.default.createElement(
+							'li',
+							null,
+							'componentWillUpdate(object nextProps,object nextState)'
+						),
+						_react2.default.createElement(
+							'li',
+							null,
+							'componentDidUpdate(object nextProps,object nextState)'
+						),
+						_react2.default.createElement(
+							'li',
+							null,
+							'componentWillUnmount()'
+						)
+					),
+					_react2.default.createElement(
+						'p',
+						null,
+						'\u6B64\u5916\uFF0CReact \u8FD8\u63D0\u4F9B\u4E24\u79CD\u7279\u6B8A\u72B6\u6001\u7684\u5904\u7406\u51FD\u6570\u3002'
+					),
+					_react2.default.createElement(
+						'ul',
+						null,
+						_react2.default.createElement(
+							'li',
+							null,
+							'componentWillReceiveProps(object nextProps)\uFF1A\u5DF2\u52A0\u8F7D\u7EC4\u4EF6\u6536\u5230\u65B0\u7684\u53C2\u6570\u65F6\u8C03\u7528'
+						),
+						_react2.default.createElement(
+							'li',
+							null,
+							'shouldComponentUpdate(object nextProps, object nextState)\uFF1A\u7EC4\u4EF6\u5224\u65AD\u662F\u5426\u91CD\u65B0\u6E32\u67D3\u65F6\u8C03\u7528'
+						)
+					),
+					_react2.default.createElement(
+						_example2.default,
+						{ title: 'React\u751F\u547D\u5468\u671F\u5B9E\u4F8B', codeQure: _code2.default.LifecExample },
+						_react2.default.createElement(LifecExample, null)
+					)
+				);
+			}
+		}]);
+
+		return Lifec;
+	}(_react.Component);
+
 	/********华********丽********的********分********割********线********/
 	/********华********丽********的********分********割********线********/
 	/********华********丽********的********分********割********线********/
@@ -27799,8 +28066,8 @@
 	/*测试组件类*/
 
 
-	var HelloWrold = function (_Component5) {
-		_inherits(HelloWrold, _Component5);
+	var HelloWrold = function (_Component10) {
+		_inherits(HelloWrold, _Component10);
 
 		function HelloWrold() {
 			_classCallCheck(this, HelloWrold);
@@ -27824,18 +28091,18 @@
 	/*双向数据绑定*/
 
 
-	var TowWayData = function (_Component6) {
-		_inherits(TowWayData, _Component6);
+	var TowWayData = function (_Component11) {
+		_inherits(TowWayData, _Component11);
 
 		function TowWayData(props) {
 			_classCallCheck(this, TowWayData);
 
-			var _this6 = _possibleConstructorReturn(this, (TowWayData.__proto__ || Object.getPrototypeOf(TowWayData)).call(this, props));
+			var _this11 = _possibleConstructorReturn(this, (TowWayData.__proto__ || Object.getPrototypeOf(TowWayData)).call(this, props));
 
-			_this6.state = {
+			_this11.state = {
 				name: ""
 			};
-			return _this6;
+			return _this11;
 		}
 
 		_createClass(TowWayData, [{
@@ -27865,8 +28132,8 @@
 	/*JSX 操作*/
 
 
-	var Arrjsx = function (_Component7) {
-		_inherits(Arrjsx, _Component7);
+	var Arrjsx = function (_Component12) {
+		_inherits(Arrjsx, _Component12);
 
 		function Arrjsx() {
 			_classCallCheck(this, Arrjsx);
@@ -27895,8 +28162,8 @@
 		return Arrjsx;
 	}(_react.Component);
 
-	var Arrjsx2 = function (_Component8) {
-		_inherits(Arrjsx2, _Component8);
+	var Arrjsx2 = function (_Component13) {
+		_inherits(Arrjsx2, _Component13);
 
 		function Arrjsx2() {
 			_classCallCheck(this, Arrjsx2);
@@ -27931,8 +28198,8 @@
 	/*React 组件案例初始化*/
 
 
-	var HelloMessage = function (_Component9) {
-		_inherits(HelloMessage, _Component9);
+	var HelloMessage = function (_Component14) {
+		_inherits(HelloMessage, _Component14);
 
 		function HelloMessage() {
 			_classCallCheck(this, HelloMessage);
@@ -27958,8 +28225,8 @@
 	/*PropsChildren*/
 
 
-	var NotesList = function (_Component10) {
-		_inherits(NotesList, _Component10);
+	var NotesList = function (_Component15) {
+		_inherits(NotesList, _Component15);
 
 		function NotesList() {
 			_classCallCheck(this, NotesList);
@@ -27987,10 +28254,198 @@
 		return NotesList;
 	}(_react.Component);
 
+	var ProptypesShow = function (_Component16) {
+		_inherits(ProptypesShow, _Component16);
+
+		function ProptypesShow() {
+			_classCallCheck(this, ProptypesShow);
+
+			return _possibleConstructorReturn(this, (ProptypesShow.__proto__ || Object.getPrototypeOf(ProptypesShow)).apply(this, arguments));
+		}
+
+		_createClass(ProptypesShow, [{
+			key: 'render',
+			value: function render() {
+				return _react2.default.createElement(
+					'div',
+					{ id: 'ProptypesShow' },
+					_react2.default.createElement(
+						'span',
+						null,
+						this.props.str
+					)
+				);
+			}
+		}]);
+
+		return ProptypesShow;
+	}(_react.Component);
+
+	ProptypesShow.propTypes = {
+		str: _react2.default.PropTypes.string
+	};
+
+	ProptypesShow.defaultProps = {
+		str: "djfadsjkf"
+	};
+
+	var DomcExample = function (_Component17) {
+		_inherits(DomcExample, _Component17);
+
+		function DomcExample() {
+			_classCallCheck(this, DomcExample);
+
+			return _possibleConstructorReturn(this, (DomcExample.__proto__ || Object.getPrototypeOf(DomcExample)).apply(this, arguments));
+		}
+
+		_createClass(DomcExample, [{
+			key: 'render',
+			value: function render() {
+				return _react2.default.createElement(
+					'div',
+					{ id: 'DomcExample' },
+					_react2.default.createElement('input', { type: 'text', ref: 'myInput' }),
+					_react2.default.createElement('input', { type: 'button', value: '\u70B9\u51FB\u64CD\u4F5C', onClick: this.handleClick.bind(this) })
+				);
+			}
+		}, {
+			key: 'handleClick',
+			value: function handleClick() {
+				this.refs.myInput.focus();
+			}
+		}]);
+
+		return DomcExample;
+	}(_react.Component);
+
+	var StateExample = function (_Component18) {
+		_inherits(StateExample, _Component18);
+
+		function StateExample(props) {
+			_classCallCheck(this, StateExample);
+
+			var _this18 = _possibleConstructorReturn(this, (StateExample.__proto__ || Object.getPrototypeOf(StateExample)).call(this, props));
+
+			_this18.state = { like: false };
+			return _this18;
+		}
+
+		_createClass(StateExample, [{
+			key: 'render',
+			value: function render() {
+				var text = this.state.like ? "I like" : "I don't like";
+				return _react2.default.createElement(
+					'div',
+					{ id: 'StateExample' },
+					_react2.default.createElement(
+						'p',
+						{ onClick: this.handleClick.bind(this) },
+						text
+					)
+				);
+			}
+		}, {
+			key: 'handleClick',
+			value: function handleClick() {
+				this.setState({ like: !this.state.like });
+			}
+		}]);
+
+		return StateExample;
+	}(_react.Component);
+
+	var FormExample = function (_Component19) {
+		_inherits(FormExample, _Component19);
+
+		function FormExample(props) {
+			_classCallCheck(this, FormExample);
+
+			var _this19 = _possibleConstructorReturn(this, (FormExample.__proto__ || Object.getPrototypeOf(FormExample)).call(this, props));
+
+			_this19.state = { fValue: '' };
+			return _this19;
+		}
+
+		_createClass(FormExample, [{
+			key: 'render',
+			value: function render() {
+				var text = this.state.fValue;
+
+				return _react2.default.createElement(
+					'div',
+					{ id: 'FormExample' },
+					_react2.default.createElement('input', { type: 'text', value: this.state.fValue, onChange: this.handleChange.bind(this) }),
+					_react2.default.createElement(
+						'p',
+						null,
+						text
+					)
+				);
+			}
+		}, {
+			key: 'handleChange',
+			value: function handleChange(e) {
+				this.setState({ fValue: e.target.value });
+			}
+		}]);
+
+		return FormExample;
+	}(_react.Component);
+
+	var LifecExample = function (_Component20) {
+		_inherits(LifecExample, _Component20);
+
+		function LifecExample(props) {
+			_classCallCheck(this, LifecExample);
+
+			var _this20 = _possibleConstructorReturn(this, (LifecExample.__proto__ || Object.getPrototypeOf(LifecExample)).call(this, props));
+
+			_this20.state = { width: 0, text: "生命周期实例" };
+			return _this20;
+		}
+
+		_createClass(LifecExample, [{
+			key: 'componentDidMount',
+			value: function componentDidMount() {
+				var that = this;
+
+				this.timer = setInterval(function () {
+					var width = that.state.width;
+					width += 1;
+
+					if (width >= 600) {
+						width = 0;
+					}
+					that.setState({ width: width });
+				}, 12);
+			}
+		}, {
+			key: 'render',
+			value: function render() {
+				return _react2.default.createElement(
+					'div',
+					{ id: 'LifecExample' },
+					_react2.default.createElement(
+						'div',
+						{ className: 'life', style: { width: this.state.width + "px" } },
+						this.state.text
+					)
+				);
+			}
+		}]);
+
+		return LifecExample;
+	}(_react.Component);
+
 	exports.Hello = Hello;
 	exports.JsxSyntx = JsxSyntx;
 	exports.Comp = Comp;
 	exports.PropsChildren = PropsChildren;
+	exports.ProptypesEx = ProptypesEx;
+	exports.Domc = Domc;
+	exports.Statec = Statec;
+	exports.Formc = Formc;
+	exports.Lifec = Lifec;
 
 /***/ },
 /* 244 */
@@ -42799,7 +43254,17 @@
 
 		comp: "class HelloMessage extends Component {\n\trender(){\n\t\treturn (\n\t\t\t<h1>Hello {this.props.name}</h1>\n\t\t)\n\t}\n}\n/*\u6E32\u67D3\u8BE5\u7EC4\u4EF6*/\nReactDOM.render(\n\t<HelloMessage name=\"Healen\" />,\n\tdocument.getElementById('app')\n)",
 
-		children: "class NotesList extends Component {\n\trender(){\n\t\treturn (\n\t\t\t<ol>\n\t\t\t\t{\n\t\t\t\t\tthis.props.children.map(function(child,key){\n\t\t\t\t\t\treturn <li key={key}>{child}</li>\n\t\t\t\t\t})\n\t\t\t\t}\n\t\t\t</ol>\n\t\t)\n\t}\n}\n/*\u6E32\u67D3\u8BE5\u7EC4\u4EF6*/\nReactDOM.render(\n\t<NotesList>\n\t\t<span>\u6211\u662F\u7B2C\u4E00\u4E2A\u5B50\u5143\u7D20</span>\n\t\t<span>\u6211\u662F\u7B2C\u4E8C\u4E2A\u5B50\u5143\u7D20</span>\n\t\t<span>\u6211\u662F\u7B2C\u4E09\u4E2A\u5B50\u5143\u7D20</span>\n\t\t<span>...</span>\n\t\t<span>\u6211\u662F\u7B2CN\u4E2A\u5B50\u5143\u7D20</span>\n\t</NotesList>,\n\tdocument.getElementById('app')\n)"
+		children: "class NotesList extends Component {\n\trender(){\n\t\treturn (\n\t\t\t<ol>\n\t\t\t\t{\n\t\t\t\t\tthis.props.children.map(function(child,key){\n\t\t\t\t\t\treturn <li key={key}>{child}</li>\n\t\t\t\t\t})\n\t\t\t\t}\n\t\t\t</ol>\n\t\t)\n\t}\n}\n/*\u6E32\u67D3\u8BE5\u7EC4\u4EF6*/\nReactDOM.render(\n\t<NotesList>\n\t\t<span>\u6211\u662F\u7B2C\u4E00\u4E2A\u5B50\u5143\u7D20</span>\n\t\t<span>\u6211\u662F\u7B2C\u4E8C\u4E2A\u5B50\u5143\u7D20</span>\n\t\t<span>\u6211\u662F\u7B2C\u4E09\u4E2A\u5B50\u5143\u7D20</span>\n\t\t<span>...</span>\n\t\t<span>\u6211\u662F\u7B2CN\u4E2A\u5B50\u5143\u7D20</span>\n\t</NotesList>,\n\tdocument.getElementById('app')\n)",
+
+		ProptypesShow: "class ProptypesShow extends Component {\n\n\trender(){\n\t\treturn (\n\t\t\t<div id=\"ProptypesShow\">\n\t\t\t\t<span>{this.props.str}</span>\n\t\t\t</div>\n\t\t)\n\t}\n\n}\n\nProptypesShow.propTypes = {\n\tstr:React.PropTypes.string\n}\n\nProptypesShow.defaultProps = {\n  str: \"djfadsjkf\"\n}/*\u6E32\u67D3\u8BE5\u7EC4\u4EF6*/\nReactDOM.render(\n\t<ProptypesShow></ProptypesShow>,\n\tdocument.getElementById('app')\n)",
+
+		DomcExample: "class DomcExample extends Component {\n\trender(){\n\t\treturn (\n\n\t\t\t<div id=\"DomcExample\">\n\t\t\t\t<input type=\"text\" ref=\"myInput\"/>\n\t\t\t\t<input type=\"button\" value=\"\u70B9\u51FB\u64CD\u4F5C\" onClick={this.handleClick.bind(this)} />\n\t\t\t</div>\n\t\t)\n\t}\n\n\thandleClick(){\n\t\tthis.refs.myInput.focus()\n\t}\n}/*\u6E32\u67D3\u8BE5\u7EC4\u4EF6*/\nReactDOM.render(\n\t<DomcExample></DomcExample>,\n\tdocument.getElementById('app')\n)",
+
+		StateExample: "class StateExample extends Component {\n\tconstructor(props) {\n\t  super(props);\n\t\n\t  this.state = {like:false};\n\t}\n\trender(){\n\t\tvar text = this.state.like? \"I like\" : \"I don't like\"\n\t\treturn (\n\t\t\t<div id=\"StateExample\">\n\t\t\t\t<p onClick={this.handleClick.bind(this)}>{text}</p>\n\t\t\t</div>\n\t\t)\n\t}\n\n\thandleClick(){\n\t\tthis.setState({like:!this.state.like});\n\t}\n}\n/*\u6E32\u67D3\u8BE5\u7EC4\u4EF6*/\nReactDOM.render(\n\t<StateExample></StateExample>,\n\tdocument.getElementById('app')\n)",
+
+		FormExample: "class FormExample extends Component {\n\tconstructor(props) {\n\t  super(props);\n\t\n\t  this.state = {fValue:''};\n\t}\n\n\trender(){\n\t\tlet text = this.state.fValue;\n\n\t\treturn (\n\n\t\t\t<div id=\"FormExample\">\n\t\t\t\t<input type=\"text\" value={this.state.fValue} onChange={this.handleChange.bind(this)}/>\n\t\t\t\t<p>{text}</p>\n\t\t\t</div>\n\n\t\t)\n\t\t\n\t}\n\n\thandleChange(e){\n\t\tthis.setState({fValue:e.target.value})\n\n\t}\n}\n/*\u6E32\u67D3\u8BE5\u7EC4\u4EF6*/\nReactDOM.render(\n\t<FormExample></FormExample>,\n\tdocument.getElementById('app')\n)",
+
+		LifecExample: "class LifecExample extends Component{\n\tconstructor(props) {\n\t  super(props);\n\t\n\t  this.state = {width:0,text:\"\u751F\u547D\u5468\u671F\u5B9E\u4F8B\"};\n\t}\n\n\tcomponentDidMount(){\n\t\tvar that = this;\n\n\t\tthis.timer=setInterval(function(){\n\t\t\tvar width = that.state.width;\n\t\t\twidth+=1;\n\n\t\t\tif(width>=600){\n\t\t\t\twidth=0;\n\t\t\t}\n\t\t\tthat.setState({width:width})\n\t\t}, 12)\n\n\t}\n\trender(){\n\t\treturn (\n\t\t\t<div id=\"LifecExample\">\n\t\t\t\t<div className=\"life\" style={{width:this.state.width+\"px\"}}>\n\t\t\t\t\t{this.state.text}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t)\n\t}\n\n}/*\u6E32\u67D3\u8BE5\u7EC4\u4EF6*/\nReactDOM.render(\n\t<LifecExample></LifecExample>,\n\tdocument.getElementById('app')\n)"
 
 	};
 	exports.default = code;
